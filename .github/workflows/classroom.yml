@@ -8,7 +8,7 @@ on:
       - master
 jobs:
   build:
-    name: Autograding
+    name: CI/CD
     runs-on: ubuntu-latest
     env:
       DOTNET_VERSION: "9.0.x"
@@ -62,19 +62,3 @@ jobs:
           environment: postman/[inst][heroku] Lab1.postman_environment.json
           delayRequest: 100
           reporters: '[ "cli" ]'
-
-      - name: Autograding
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        uses: education/autograding@v1
-        continue-on-error: true
-
-      - name: Github auto grader mark
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        uses: Romanow/google-sheet-autograder-marker@v1.0
-        with:
-          google_token: ${{secrets.GOOGLE_API_KEY}}
-          sheet_id: "1xkgjUX6Qmk7rdJG-QPOToav-HWWtthJjnShIKnw3oIY"
-          homework_number: 1
-          user_column: 'D'
-          column_offset: 'F'
-          mark: "'+"
