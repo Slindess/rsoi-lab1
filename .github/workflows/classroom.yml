@@ -10,14 +10,52 @@ jobs:
   build:
     name: Autograding
     runs-on: ubuntu-latest
+    env:
+      DOTNET_VERSION: "9.0.x"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # TODO build, test and deploy project
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore src/PersonApp/PersonApp.sln
+
+      - name: Build
+        run: dotnet build src/PersonApp/PersonApp.sln --configuration Release --no-restore
+
+      - name: Unit Tests
+        run: dotnet test src/PersonApp/PersonApp.sln --configuration Release --no-build
+
+      - name: Build Docker Image
+        run: docker build --tag person-app:${{ github.sha }} .
+
+      - name: Deploy to Render
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: curl --fail --request POST "$RENDER_DEPLOY_HOOK_URL"
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+
+      - name: Wait for Render Deploy
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: sleep 120
+
+      - name: Configure Remote Postman Environment
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          jq --arg baseUrl "$RENDER_SERVICE_URL" \
+            '(.values[] | select(.key == "baseUrl") | .value) = $baseUrl' \
+            "postman/[inst][heroku] Lab1.postman_environment.json" > /tmp/render-environment.json
+          mv /tmp/render-environment.json "postman/[inst][heroku] Lab1.postman_environment.json"
+        env:
+          RENDER_SERVICE_URL: ${{ secrets.RENDER_SERVICE_URL }}
 
       - name: Run API Tests
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: matt-ball/newman-action@master
         with:
           collection: postman/[inst] Lab1.postman_collection.json
@@ -26,10 +64,12 @@ jobs:
           reporters: '[ "cli" ]'
 
       - name: Autograding
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: education/autograding@v1
         continue-on-error: true
 
       - name: Github auto grader mark
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: Romanow/google-sheet-autograder-marker@v1.0
         with:
           google_token: ${{secrets.GOOGLE_API_KEY}}
