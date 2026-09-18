@@ -56,6 +56,7 @@ public static class DependencyInjection
     {
         var uri = new Uri(databaseUrl);
         var credentials = uri.UserInfo.Split(':', 2);
+        var port = uri.Port > 0 ? uri.Port : 5432;
 
         if (credentials.Length != 2)
         {
@@ -65,7 +66,7 @@ public static class DependencyInjection
         return string.Join(';', new[]
         {
             $"Host={uri.Host}",
-            $"Port={uri.Port}",
+            $"Port={port}",
             $"Database={uri.AbsolutePath.TrimStart('/')}",
             $"Username={Uri.UnescapeDataString(credentials[0])}",
             $"Password={Uri.UnescapeDataString(credentials[1])}",
